@@ -11,7 +11,7 @@ const GET_REMAIN_TIME_COMMAND = `pmset -g batt | grep remaining | cut -d" " -f1,
 
 const batteryMenuBar = mb.menubar({
   tooltip: "Battery Remaining Time",
-  icon: `${__dirname}/../icon.png`
+  icon: `${__dirname}/../iconTemplate.png`
 });
 
 async function getRemainingTime() {
@@ -20,12 +20,9 @@ async function getRemainingTime() {
 
   if (!/\d{1,2}:\d{1,2}/g.test(stdout) || /^\s0:00/.test(stdout)) return "";
 
-  return stdout.trim();
-}
+  const [hour, minute] = stdout.trim().split(":");
 
-function override() {
-  batteryMenuBar.tray._events.click = () => {};
-  batteryMenuBar.tray._events['double-click'] = () => {};
+  return `${hour}h${minute}m`;
 }
 
 async function updateValue() {
@@ -37,37 +34,33 @@ async function updateValue() {
   }
 }
 
-function setRightClickMenu() {
-  const contextMenu = Menu.buildFromTemplate([
-    {
-      label: "Quit",
-      click: () => batteryMenuBar.app.quit()
-    },
-    {
-      label:"Update",
-      click: () => updateValue()
-    }
-  ]);
-
-  batteryMenuBar.tray.on("right-click", () => {
-    batteryMenuBar.tray.popUpContextMenu(contextMenu);
-  });
-}
-
+const trayContextMenu = Menu.buildFromTemplate([
+  {
+    label: "Update",
+    click: () => updateValue()
+  },
+  {
+    label: "Quit",
+    click: () => batteryMenuBar.app.quit()
+  }
+]);
 
 function startMonitoring() {
   updateValue();
-  return setInterval(() => updateValue(), UPDATE_INTERVAL);
+  return setInterval(updateValue, UPDATE_INTERVAL);
 }
 
 function stopMonitoring(intervalPid) {
   clearInterval(intervalPid);
 }
 
-batteryMenuBar.on("ready", () => {
-  override();
+batteryMenuBar.app.commandLine.appendSwitch(
+  "disable-backgrounding-occluded-windows",
+  "true"
+);
 
-  setRightClickMenu();
+batteryMenuBar.on("ready", () => {
+  batteryMenuBar.tray.setContextMenu(trayContextMenu);
 
   let intervalPid = startMonitoring();
 
