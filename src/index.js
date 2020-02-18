@@ -18,22 +18,14 @@ async function getRemainingTime() {
   const { stderr, stdout } = await promiseExec(GET_REMAIN_TIME_COMMAND);
   if (stderr) throw new Error(`Failed to exec command on ${stderr}`);
 
-  if (!/\d{1,2}:\d{1,2}/g.test(stdout) && /^\s0:00/.test(stdout)) return "";
+  if (!/\d{1,2}:\d{1,2}/g.test(stdout) || /^\s0:00/.test(stdout)) return "";
 
   return stdout.trim();
 }
 
-function setRightClickMenu() {
-  const contextMenu = Menu.buildFromTemplate([
-    {
-      label: "Quit",
-      click: () => batteryMenuBar.app.quit()
-    }
-  ]);
-
-  batteryMenuBar.tray.on("right-click", () => {
-    batteryMenuBar.tray.popUpContextMenu(contextMenu);
-  });
+function override() {
+  batteryMenuBar.tray._events.click = () => {};
+  batteryMenuBar.tray._events['double-click'] = () => {};
 }
 
 async function updateValue() {
@@ -45,6 +37,24 @@ async function updateValue() {
   }
 }
 
+function setRightClickMenu() {
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: "Quit",
+      click: () => batteryMenuBar.app.quit()
+    },
+    {
+      label:"Update",
+      click: () => updateValue()
+    }
+  ]);
+
+  batteryMenuBar.tray.on("right-click", () => {
+    batteryMenuBar.tray.popUpContextMenu(contextMenu);
+  });
+}
+
+
 function startMonitoring() {
   updateValue();
   return setInterval(() => updateValue(), UPDATE_INTERVAL);
@@ -55,8 +65,7 @@ function stopMonitoring(intervalPid) {
 }
 
 batteryMenuBar.on("ready", () => {
-  batteryMenuBar.tray.on("click", () => {});
-  batteryMenuBar.tray.on("double-click", () => {});
+  override();
 
   setRightClickMenu();
 
